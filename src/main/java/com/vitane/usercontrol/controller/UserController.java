@@ -6,12 +6,12 @@ import com.vitane.usercontrol.specification.UserSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -34,10 +34,23 @@ public class UserController {
         List<User> userList = userService.read(nonDeletedSpecification, PageRequest.of(page, PAGE_SIZE));
         return ResponseEntity.ok(userList);
     }
+
     @GetMapping("/{login}")
     public ResponseEntity<User> getUserById(@PathVariable String login) {
         User currentUser = userService.read(login);
         return ResponseEntity.ok(currentUser);
+    }
+
+    @PostMapping(value = "/{login}/pwd", consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public ResponseEntity setUserPassword(@PathVariable String login, @RequestBody String password) {
+        userService.setPassword(login, password);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public ResponseEntity createUser(@RequestBody User user) {
+        userService.create(user);
+        return ResponseEntity.created(URI.create("/" + user.getLogin())).build();
     }
 
 }
