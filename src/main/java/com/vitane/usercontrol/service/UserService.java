@@ -2,7 +2,6 @@ package com.vitane.usercontrol.service;
 
 import com.vitane.usercontrol.domain.User;
 import com.vitane.usercontrol.repository.UserRepository;
-import com.vitane.usercontrol.specification.UserSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -10,7 +9,6 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class UserService {
@@ -26,8 +24,8 @@ public class UserService {
         repository.create(user);
     }
 
-    public User read(UUID id) {
-        return repository.read(id);
+    public User read(String login) {
+        return repository.read(login);
     }
 
     public List<User> read(Specification<User> specification, Pageable pageable) {
@@ -35,15 +33,15 @@ public class UserService {
     }
 
     public void update(User user) {
-        if (existsById(user.getId())) {
+        if (existsByLogin(user.getLogin())) {
             repository.update(user);
         }
         // else throw UserNotFoundException
     }
 
-    public void delete(UUID id) {
-        if (existsById(id)) {
-            User currentUser = read(id);
+    public void delete(String login) {
+        if (existsByLogin(login)) {
+            User currentUser = read(login);
             currentUser.setDeleted(true);
             update(currentUser);
         }
@@ -51,12 +49,12 @@ public class UserService {
     }
 
     public void delete(User user) {
-        delete(user.getId());
+        delete(user.getLogin());
     }
 
-    public void setPassword(UUID id, String password) {
-        if (existsById(id)) {
-            User currentUser = read(id);
+    public void setPassword(String login, String password) {
+        if (existsByLogin(login)) {
+            User currentUser = read(login);
             String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
             currentUser.setPassword(passwordHash);
             update(currentUser);
@@ -64,7 +62,7 @@ public class UserService {
         // else throw UserNotFoundException
     }
 
-    private boolean existsById(UUID id) {
-        return repository.existsById(id);
+    private boolean existsByLogin(String login) {
+        return repository.existsByLogin(login);
     }
 }

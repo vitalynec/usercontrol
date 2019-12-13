@@ -1,6 +1,7 @@
 package com.vitane.usercontrol.repository;
 
 import com.vitane.usercontrol.domain.User;
+import com.vitane.usercontrol.specification.UserSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -17,8 +18,8 @@ public interface UserRepository extends PagingAndSortingRepository<User, UUID>, 
         save(user);
     }
 
-    default User read(UUID id) {
-        return findById(id).get();
+    default User read(String login) {
+        return findOne(UserSpecification.findByLogin(login)).get();
     }
 
     default void update(User user) {
@@ -27,5 +28,10 @@ public interface UserRepository extends PagingAndSortingRepository<User, UUID>, 
 
     default Page<User> read(Specification<User> specification, Pageable pageable) {
         return findAll(specification, pageable);
+    }
+
+    default boolean existsByLogin(String login) {
+        User currentUser = read(login);
+        return currentUser != null;
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
@@ -32,6 +33,11 @@ public class UserController {
         int page = Integer.parseInt(params.getOrDefault("page", "0"));
         List<User> userList = userService.read(nonDeletedSpecification, PageRequest.of(page, PAGE_SIZE));
         return ResponseEntity.ok(userList);
+    }
+    @GetMapping("/{login}")
+    public ResponseEntity<User> getUserById(@PathVariable String login) {
+        User currentUser = userService.read(login);
+        return ResponseEntity.ok(currentUser);
     }
 
 }
