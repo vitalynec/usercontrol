@@ -36,9 +36,9 @@ public class UserService implements IUserService {
 
     @Transactional(readOnly = true)
     public Page<UserResponse> read(String login, String email, Pageable pageable) {
-        Specification<User> specification = UserSpecification.findByLogin(login)
+        Specification<User> specification = UserSpecification.findNonDeleted()
                 .and(UserSpecification.findByEmail(email))
-                .and(UserSpecification.findNonDeleted());
+                .and(UserSpecification.findByLogin(login));
         return repository.findAll(specification, pageable).map(user -> conversionService.convert(user, UserResponse.class));
     }
 
@@ -46,7 +46,9 @@ public class UserService implements IUserService {
         if (repository.existsById(user.getId())) {
             repository.save(user);
             return conversionService.convert(user, UserResponse.class);
-        } else throw new UserNotFoundException(user.getId().toString());
+        } else {
+            throw new UserNotFoundException(user.getId().toString());
+        }
     }
 
     public void delete(UUID id) throws UserNotFoundException {
@@ -61,10 +63,17 @@ public class UserService implements IUserService {
         if (passwordEncoder.matches(currentUser.getPassword(), lastPassword)) {
             currentUser.setPassword(passwordEncoder.encode(newPassword));
             update(currentUser);
-        } else throw new PasswordNotMatchesException();
+        } else {
+            throw new PasswordNotMatchesException();
+        }
     }
 
     private User getUser(UUID id) throws UserNotFoundException {
-        return repository.findById(id).orElseThrow(() -> new UserNotFoundException(id.toString()));
+        User currentUser = repository.findById(id).orElseThrow(() -> new UserNotFoundException(id.toString()));
+        if (currentUser.isDeleted()) {
+            throw new UserNotFoundException(id.toString());
+        } else {
+            return currentUser;
+        }
     }
 }
