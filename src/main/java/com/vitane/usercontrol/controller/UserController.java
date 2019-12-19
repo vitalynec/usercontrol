@@ -3,7 +3,7 @@ package com.vitane.usercontrol.controller;
 import com.vitane.usercontrol.domain.User;
 import com.vitane.usercontrol.domain.UserResponse;
 import com.vitane.usercontrol.exception.UserNotFoundException;
-import com.vitane.usercontrol.service.IUserService;
+import com.vitane.usercontrol.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final IUserService userService;
+    private final UserService userService;
 
     @GetMapping({"", "/"})
     public ResponseEntity<Page<UserResponse>> getNonDeletedUsers(@RequestParam(value = "login", required = false) String login,
