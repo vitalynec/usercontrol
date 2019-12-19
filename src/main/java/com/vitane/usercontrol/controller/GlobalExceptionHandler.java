@@ -25,4 +25,12 @@ public class GlobalExceptionHandler {
     public void handlerPasswordNotMatchesException() {
     }
 
+    @ExceptionHandler
+    @ResponseBody
+    public ExceptionInfo handlerException(HttpServletRequest request, Exception ex) {
+        ExceptionInfo response = new ExceptionInfo();
+        response.setUrl(request.getRequestURL().toString());
+        response.setMessage(ex.getMessage());
+        return response;
+    }
 }
