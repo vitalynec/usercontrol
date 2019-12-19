@@ -1,56 +1,62 @@
 package com.vitane.usercontrol.controller;
 
 import com.vitane.usercontrol.domain.User;
-import com.vitane.usercontrol.service.UserService;
-import com.vitane.usercontrol.specification.UserSpecification;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.jpa.domain.Specification;
+import com.vitane.usercontrol.domain.UserResponse;
+import com.vitane.usercontrol.exception.UserNotFoundException;
+import com.vitane.usercontrol.service.IUserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 @Controller
+@RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    private final int PAGE_SIZE = 10;
-    Specification<User> nonDeletedSpecification = UserSpecification.findNonDeleted();
+    private final IUserService userService;
 
-    private UserService userService;
-
-    @Autowired
-    public void setUserService(UserService userService) {
-        this.userService = userService;
+    @GetMapping({"", "/"})
+    public ResponseEntity<Page<UserResponse>> getNonDeletedUsers(@RequestParam(value = "login", required = false) String login,
+                                                                 @RequestParam(value = "email", required = false) String email,
+                                                                 @PageableDefault Pageable pageable) {
+        return ResponseEntity.ok(userService.read(login, email, pageable));
     }
 
-    @GetMapping("/")
-    public ResponseEntity<List<User>> getUnDeletedUsers(@RequestParam Map<String, String> params) {
-        int page = Integer.parseInt(params.getOrDefault("page", "0"));
-        List<User> userList = userService.read(nonDeletedSpecification, PageRequest.of(page, PAGE_SIZE));
-        return ResponseEntity.ok(userList);
+    @GetMapping("/{id}")
+    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) throws UserNotFoundException {
+        return ResponseEntity.ok(userService.read(id));
     }
 
-    @GetMapping("/{login}")
-    public ResponseEntity<User> getUserById(@PathVariable String login) {
-        User currentUser = userService.read(login);
-        return ResponseEntity.ok(currentUser);
-    }
-
-    @PostMapping(value = "/{login}/pwd", consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    public ResponseEntity setUserPassword(@PathVariable String login, @RequestBody String password) {
-        userService.setPassword(login, password);
+    @PostMapping(value = "/{id}/pwd", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity setUserPassword(@PathVariable UUID id,
+                                          @RequestBody String lastPassword,
+                                          @RequestBody String newPassword) throws Exception {
+        userService.setPassword(id, lastPassword, newPassword);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    public ResponseEntity createUser(@RequestBody User user) {
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<UserResponse> createUser(@RequestBody User user) {
         userService.create(user);
-        return ResponseEntity.created(URI.create("/" + user.getLogin())).build();
+        return ResponseEntity.created(URI.create("/" + user.getId())).build();
     }
 
+    @PostMapping(value = "/{id}/update", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<UserResponse> updateUser(@RequestBody User user) throws UserNotFoundException {
+        return ResponseEntity.ok(userService.update(user));
+    }
+
+    @GetMapping(value = "/{id}/delete")
+    public ResponseEntity deleteUser(@PathVariable UUID id) throws UserNotFoundException {
+        userService.delete(id);
+        return ResponseEntity.ok().build();
+    }
 }

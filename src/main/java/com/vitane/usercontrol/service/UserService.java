@@ -1,68 +1,70 @@
 package com.vitane.usercontrol.service;
 
 import com.vitane.usercontrol.domain.User;
+import com.vitane.usercontrol.domain.UserResponse;
+import com.vitane.usercontrol.exception.PasswordNotMatchesException;
+import com.vitane.usercontrol.exception.UserNotFoundException;
 import com.vitane.usercontrol.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.vitane.usercontrol.specification.UserSpecification;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.convert.ConversionService;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.UUID;
 
 @Service
-public class UserService {
+@RequiredArgsConstructor
+public class UserService implements IUserService {
 
-    UserRepository repository;
-
-    @Autowired
-    private void setRepository(UserRepository repository) {
-        this.repository = repository;
-    }
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository repository;
+    private final ConversionService conversionService;
 
     public void create(User user) {
-        repository.create(user);
+        repository.save(user);
     }
 
-    public User read(String login) {
-        return repository.read(login);
+    @Transactional(readOnly = true)
+    public UserResponse read(UUID id) throws UserNotFoundException {
+        return conversionService.convert(getUser(id), UserResponse.class);
     }
 
-    public List<User> read(Specification<User> specification, Pageable pageable) {
-        return repository.read(specification, pageable).getContent();
+    @Transactional(readOnly = true)
+    public Page<UserResponse> read(String login, String email, Pageable pageable) {
+        Specification<User> specification = UserSpecification.findByLogin(login)
+                .and(UserSpecification.findByEmail(email))
+                .and(UserSpecification.findNonDeleted());
+        return repository.findAll(specification, pageable).map(user -> conversionService.convert(user, UserResponse.class));
     }
 
-    public void update(User user) {
-        if (existsByLogin(user.getLogin())) {
-            repository.update(user);
-        }
-        // else throw UserNotFoundException
+    public UserResponse update(User user) throws UserNotFoundException {
+        if (repository.existsById(user.getId())) {
+            repository.save(user);
+            return conversionService.convert(user, UserResponse.class);
+        } else throw new UserNotFoundException(user.getId().toString());
     }
 
-    public void delete(String login) {
-        if (existsByLogin(login)) {
-            User currentUser = read(login);
-            currentUser.setDeleted(true);
+    public void delete(UUID id) throws UserNotFoundException {
+        User currentUser = getUser(id);
+        currentUser.setDeleted(true);
+        update(currentUser);
+    }
+
+    public void setPassword(UUID id, String lastPassword, String newPassword)
+            throws UserNotFoundException, PasswordNotMatchesException {
+        User currentUser = getUser(id);
+        if (passwordEncoder.matches(currentUser.getPassword(), lastPassword)) {
+            currentUser.setPassword(passwordEncoder.encode(newPassword));
             update(currentUser);
-        }
-        // else throw UserNotFoundException
+        } else throw new PasswordNotMatchesException();
     }
 
-    public void delete(User user) {
-        delete(user.getLogin());
-    }
-
-    public void setPassword(String login, String password) {
-        if (existsByLogin(login)) {
-            User currentUser = read(login);
-            String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
-            currentUser.setPassword(passwordHash);
-            update(currentUser);
-        }
-        // else throw UserNotFoundException
-    }
-
-    private boolean existsByLogin(String login) {
-        return repository.existsByLogin(login);
+    private User getUser(UUID id) throws UserNotFoundException {
+        return repository.findById(id).orElseThrow(() -> new UserNotFoundException(id.toString()));
     }
 }
